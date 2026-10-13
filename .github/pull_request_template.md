@@ -5,6 +5,7 @@
 <!-- Which production systems, services, or components does this touch? -->
 
 ## Jira Ticket
+<!-- If this PR legitimately has no Jira ticket, please set the ticket number to "none" value explicitly. -->
 Linked work item: PROJ-
 
 ## Risk Rank
