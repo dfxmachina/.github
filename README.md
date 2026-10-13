@@ -21,8 +21,10 @@ To plug a project repository into our shared CI, create a `.github/workflows/ci.
 name: CI
 
 on:
+  # Include edited so a description-only fix re-runs the check, not just the first push.
   pull_request:
     branches: [ main ]
+    types: [opened, edited, reopened, synchronize]
 
 jobs:
   run-global-ci:

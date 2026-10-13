@@ -9,6 +9,10 @@ name: PR Template Check
 # in the repo's branch-protection rules for master.
 
 on:
+  # Run as a reusable workflow invoked from other repos via `uses:`.
+  workflow_call:
+
+  # Also run directly for pull requests opened in this repository.
   pull_request:
     types: [opened, edited, reopened, synchronize]
 
