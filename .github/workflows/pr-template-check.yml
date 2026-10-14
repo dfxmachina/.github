@@ -140,20 +140,27 @@ jobs:
 
           # ---------------------------------------------------------------------
           # 1. Jira ticket — require a work item key (e.g. PROJ-1234) on the
-          #    "Linked work item:" line, or an Atlassian browse URL, within the
-          #    "Jira Ticket" section. Section-scoping avoids false positives from
-          #    unrelated tokens (UTF-8, SHA-256, CVE-2024) and from a ticket quoted
-          #    elsewhere. The template seeds a bare "PROJ-" with no number, which
-          #    must NOT satisfy this check.
+          #    "Linked work item:" line, an Atlassian browse URL, OR the literal
+          #    value "none" (some PRs legitimately have no Jira ticket). The
+          #    "none" match is scoped to the value after "Linked work item:" and
+          #    must be the whole value, so it cannot shadow a real ticket. A
+          #    ticket whose project key is "none" is NOT accepted so a value
+          #    like "NONE-123" is treated as missing, not as a ticket.
+          #    Section-scoping avoids false positives from unrelated tokens
+          #    (UTF-8, SHA-256, CVE-2024) and from a ticket quoted elsewhere.
+          #    The template seeds a bare "PROJ-" with no number, which must NOT
+          #    satisfy this check.
           # ---------------------------------------------------------------------
           get_section "Jira Ticket"
           if [[ "$SECTION_COUNT" -gt 1 ]]; then
             errors+=("**Duplicate \`## Jira Ticket\` heading.** Remove any pasted or example copy so only the real section remains.")
-          elif grep -qiE '^[[:space:]]*Linked work item:.*[A-Z][A-Z0-9]+-[0-9]+' <<< "$SECTION" \
-               || grep -qiE 'atlassian\.net/browse/[A-Z][A-Z0-9]+-[0-9]+' <<< "$SECTION"; then
-            echo "Jira ticket reference found."
+          elif ( grep -qiE '^[[:space:]]*Linked work item:.*[A-Z][A-Z0-9]+-[0-9]+' <<< "$SECTION" \
+                && ! grep -qiE '^[[:space:]]*Linked work item:[[:space:]]*NONE-[0-9]+' <<< "$SECTION" ) \
+               || grep -qiE 'atlassian\.net/browse/[A-Z][A-Z0-9]+-[0-9]+' <<< "$SECTION" \
+               || grep -qiE '^[[:space:]]*Linked work item:[[:space:]]*none[[:space:]]*$' <<< "$SECTION"; then
+            echo "Jira ticket reference found (ticket key, browse URL, or 'none')."
           else
-            errors+=("**Jira ticket missing.** Under **Jira Ticket**, on the \`Linked work item:\` line, add a ticket key such as \`PROJ-1234\` (it is currently blank or shows only \`PROJ-\`). A full Atlassian browse URL also works.")
+            errors+=("**Jira ticket missing.** Under **Jira Ticket**, on the \`Linked work item:\` line, add a ticket key such as \`PROJ-1234\`, an Atlassian browse URL, or set the value to \`none\` if this PR legitimately has no Jira ticket.")
           fi
 
           # ---------------------------------------------------------------------
