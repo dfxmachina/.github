@@ -55,14 +55,16 @@ jobs:
           # Normalize the body before scanning so guidance/example content cannot
           # satisfy or skew the checks. Template fields are never legitimately
           # inside an HTML comment or a code fence.
-          #   * Drop HTML comments using HTML's own rule — "<!--" to the NEXT "-->",
-          #     non-greedy. A genuinely unclosed "<!--" (no later "-->") matches
-          #     nothing and is left intact, so it cannot delete the fields after it.
+          #   * Drop HTML comments. Same-line comments go first: a template line
+          #     such as "<!-- note -->" must not close a stray "<!--" from an
+          #     earlier section and delete the Jira and risk fields between them.
+          #     Multi-line comments are removed after that. An opener with no
+          #     closer is left intact, so it cannot delete the fields after it.
           #   * Drop fenced code blocks (a pasted copy of the template must not
           #     supply a ticket or checked box), but only when balanced (an even
           #     number of ``` lines). An unclosed fence is left intact so it cannot
           #     hide the fields that follow it.
-          body_no_comments="$(perl -0777 -pe 's/<!--.*?-->//gs' <<< "$body")"
+          body_no_comments="$(perl -0777 -pe 's/<!--.*?-->//g; s/<!--.*?-->//gs' <<< "$body")"
           # Preserve pre-fence-stripped body for rollback check — rollback steps
           # are commonly documented as code blocks and should count as content.
           body="$body_no_comments"
@@ -97,15 +99,26 @@ jobs:
           # non-fenced prose OR fenced content without a duplicate heading.
           get_section_no_fences() {
             local re="^##[[:space:]]+$1"
-            SECTION_COUNT="$(awk -v re="$re" '
-              /^[[:space:]]*```/ { fence = !fence }
+            local fence_lines balanced
+            # An odd number of fence markers means one fence is unclosed. Ignore
+            # fences then, as the body-wide strip above does. Otherwise every
+            # heading after the unclosed marker counts as fenced: a real
+            # Rollback Approach after it is hidden and reads as empty.
+            fence_lines="$(grep -cE '^[[:space:]]*```' <<< "$body_no_comments" || true)"
+            if (( fence_lines % 2 == 0 )); then
+              balanced=1
+            else
+              balanced=0
+            fi
+            SECTION_COUNT="$(awk -v re="$re" -v balanced="$balanced" '
+              /^[[:space:]]*```/ { if (balanced) fence = !fence; next }
               !fence && $0 ~ re { count++ }
               END { print count+0 }
             ' <<< "$body_no_comments")"
             # Single marker appended: "###_XY" where X = real prose outside fences,
             # Y = fenced content without dup heading (each "1" or "0").
-            SECTION="$(awk -v re="$re" '
-              /^[[:space:]]*```/ { fence = !fence; next }
+            SECTION="$(awk -v re="$re" -v balanced="$balanced" '
+              /^[[:space:]]*```/ { if (balanced) fence = !fence; next }
               !fence && /^##[[:space:]]/ { grab=0; in_unclosed_comment=0 }
               !fence && $0 ~ re && !seen { grab=1; seen=1; next }
               grab { print }
