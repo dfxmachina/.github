@@ -12,6 +12,8 @@ We use **GitHub Actions Reusable Workflows** to maintain standard security, lint
 
 * **`pr-template-check.yml`**: Enforces the PR description template (`.github/pull_request_template.md`).
   * *Path:* `dfxmachina/.github/.github/workflows/pr-template-check.yml@main`
+* **`terraform-module-release.yml`**: Release Drafter for the `terraform-<provider>-in-*` module repos. It checks that PR titles are conventional commits and keeps a draft release with the next semver version (`feat` minor, `fix`/`chore`/`docs`/`refactor` patch, `!` major). Its config is `.github/release-drafter-terraform-module.yml`, read from the same commit as the workflow. The caller example is at the top of the workflow file.
+  * *Path:* `dfxmachina/.github/.github/workflows/terraform-module-release.yml@<tag>`
 
 ### How to use it in your Project Repositories
 

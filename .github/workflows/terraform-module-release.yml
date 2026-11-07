@@ -1,0 +1,65 @@
+name: Terraform module release
+
+# Release process for the terraform-<provider>-in-* module repos. Each module
+# repo calls this workflow on pull requests and on pushes to main:
+#
+#   on:
+#     pull_request:
+#       types: [opened, edited, reopened, synchronize, labeled, unlabeled]
+#     push:
+#       branches: [main]
+#   permissions:
+#     contents: write
+#     pull-requests: read
+#   jobs:
+#     release:
+#       uses: dfxmachina/.github/.github/workflows/terraform-module-release.yml@<tag>
+#
+# On a pull request, check-pr-title fails unless the title is a conventional
+# commit that the config below can version. On a push to main, Release Drafter
+# updates the draft release and its version. Publishing the draft creates the
+# vX.Y.Z tag that consumers pin. Nothing here publishes.
+#
+# The config is .github/release-drafter-terraform-module.yml, read from the
+# commit this workflow was called at, so a caller's pin covers both files.
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  check-pr-title:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require the reusable workflow commit
+        env:
+          WORKFLOW_SHA: ${{ job.workflow_sha }}
+        run: test -n "$WORKFLOW_SHA" || { echo "::error::job.workflow_sha is empty; call this file as a reusable workflow"; exit 1; }
+
+      - uses: release-drafter/release-drafter/check-pr@978bb0b30c5ee8cdd332ced253758157150d43f0 # v7.10.0
+        with:
+          config-name: ${{ job.workflow_repository }}:release-drafter-terraform-module.yml@${{ job.workflow_sha }}
+
+  update-release-draft:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write # create and update the draft release
+      pull-requests: read # merged PR titles and labels
+    concurrency:
+      group: release-draft-${{ github.repository }}
+      cancel-in-progress: false
+    steps:
+      - name: Require the reusable workflow commit
+        env:
+          WORKFLOW_SHA: ${{ job.workflow_sha }}
+        run: test -n "$WORKFLOW_SHA" || { echo "::error::job.workflow_sha is empty; call this file as a reusable workflow"; exit 1; }
+
+      - uses: release-drafter/release-drafter@978bb0b30c5ee8cdd332ced253758157150d43f0 # v7.10.0
+        with:
+          config-name: ${{ job.workflow_repository }}:release-drafter-terraform-module.yml@${{ job.workflow_sha }}

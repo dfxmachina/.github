@@ -1,0 +1,62 @@
+# Release Drafter configuration for the terraform-<provider>-in-* module repos.
+# Loaded by .github/workflows/terraform-module-release.yml from the same commit
+# of this repository, so a caller pinned to a tag gets the matching config.
+#
+# The version follows Semantic Versioning and is read from the conventional PR
+# title (the squash-merge subject):
+#
+#   feat:                        minor (a new input, output or capability)
+#   fix:, chore:, docs:, refactor:  patch
+#   any of these with "!"        major (feat!: ..., chore(INS-1234)!: ...)
+#
+# A `major` label also forces a major bump, and a `skip-changelog` label leaves
+# a PR out of both the notes and the version. A title of any other type fails
+# the workflow's check-pr-title job.
+
+name-template: 'v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+
+categories:
+  - type: pre-exclude
+    when:
+      label: skip-changelog
+  - title: '💥 Breaking changes'
+    semver-increment: major
+    exclusive: true
+    when:
+      conventional:
+        types: [feat, fix, chore, docs, refactor]
+        breaking: true
+  - title: '🚀 Features'
+    semver-increment: minor
+    when:
+      conventional:
+        type: feat
+  - title: '🐛 Fixes'
+    when:
+      conventional:
+        type: fix
+  - title: '🧰 Maintenance'
+    when:
+      conventional:
+        types: [chore, refactor]
+  - title: '📚 Documentation'
+    when:
+      conventional:
+        type: docs
+  - type: version-resolver
+    semver-increment: major
+    when:
+      label: major
+
+change-template: '- $TITLE by @$AUTHOR in #$NUMBER'
+change-title-escapes: '\<*_&'
+
+# The HTML comment shows only while editing the draft.
+template: |
+  <!-- Before publishing: if consumers will plan a change when they move to this version (a replaced resource, an updated Helm release, a new required input), say so here. -->
+  ## Changes
+
+  $CHANGES
+
+  **Full changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...$RESOLVED_TAG
